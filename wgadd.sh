@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-# ./wgadd.sh <PEER_NAME> <PEER_IP> [PEER_PUBLIC_KEY] [PEER_PRIVATE_KEY] [PEER_ALLOWED_IPS]
+# ./wgadd.sh <PEER_NAME> <PEER_IP> [PEER_PRIVATE_KEY] [PEER_ALLOWED_IPS]
 # - adds a wireguard peer with a given name and IP
-# - (optional) with given keys (generated if omitted)
+# - (optional) with a given private key (generated if omitted)
 # - (optional) with a list of allowed ips (defaults to just $PEER_IP/32)
 
 set -euo pipefail
@@ -16,12 +16,11 @@ WGCONF="/etc/wireguard/wg0.conf"
 
 PEER_NAME="$1"
 PEER_IP="$2"
-PEER_PUBLIC_KEY=${3:-''}
-PEER_PRIVATE_KEY=${4:-''}
-PEER_ALLOWED_IPS=${5:-''}
+PEER_PRIVATE_KEY=${3:-''}
+PEER_ALLOWED_IPS=${4:-''}
 
 if [[ -z "$PEER_IP" ]]; then
-    echo "usage: $0 <PEER_NAME> <PEER_IP> [PEER_PUBLIC_KEY] [PEER_PRIVATE_KEY] [PEER_ALLOWED_IPS]"
+    echo "usage: $0 <PEER_NAME> <PEER_IP> [PEER_PRIVATE_KEY] [PEER_ALLOWED_IPS]"
     exit 1
 fi
 
@@ -33,8 +32,8 @@ CLIENTCONF="${PEER_NAME}_${PEER_IP}.conf"
 
 if [[ -z "$PEER_PRIVATE_KEY" ]]; then
     PEER_PRIVATE_KEY=$(wg genkey)
-    PEER_PUBLIC_KEY=$(printf "%s" "$PEER_PRIVATE_KEY" | wg pubkey)
 fi
+PEER_PUBLIC_KEY=$(printf "%s" "$PEER_PRIVATE_KEY" | wg pubkey)
 
 SERVER_PUBLIC_KEY=$(wg show wg0 public-key)
 SERVER_ENDPOINT=$(ip route get 1.1.1.1 | awk '{print $7; exit}')
