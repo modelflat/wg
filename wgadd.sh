@@ -31,7 +31,7 @@ fi
 
 CLIENTCONF="${PEER_NAME}_${PEER_IP}.conf"
 
-if [[ -z "$PEER_PRIVATE_KEY"]]; then
+if [[ -z "$PEER_PRIVATE_KEY" ]]; then
     PEER_PRIVATE_KEY=$(wg genkey)
     PEER_PUBLIC_KEY=$(printf "%s" "$PEER_PRIVATE_KEY" | wg pubkey)
 fi

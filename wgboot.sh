@@ -112,7 +112,7 @@ fi
 tee $WGCONF >/dev/null <<EOF
 [Interface]
 PrivateKey = $PRIVATE_KEY
-Address = $HOST_SUBNET
+Address = $HOST_ADDRESS/32
 ListenPort = $WGPORT
 EOF
 
