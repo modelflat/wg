@@ -53,13 +53,6 @@ git clone https://git.zx2c4.com/wireguard-tools /tmp/wireguard-tools || true
 make -C /tmp/wireguard-tools/src
 make -C /tmp/wireguard-tools/src install
 
-tee /etc/nftables.conf >/dev/null <<EOF
-#!/usr/sbin/nft -f
-
-flush ruleset
-
-EOF
-
 # packet forwarding
 echo "<- setting up packet forwarding"
 echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
@@ -69,35 +62,30 @@ sysctl -p
 # nat masquerading
 if [[ -n "$ENABLE_NAT_ON_DEVICE" ]]; then 
     echo "<- setting up NAT on $ENABLE_NAT_ON_DEVICE"
-    # TODO add rules through nft then dump into config to avoid duplicates
-    tee -a /etc/nftables.conf >/dev/null <<EOF
-table ip nat {
-    chain POSTROUTING {
-        type nat hook postrouting priority 100;
-        oif "$ENABLE_NAT_ON_DEVICE" masquerade
-    }
-}
-EOF
+    nft add table ip nat
+    nft add chain ip nat POSTROUTING '{ type nat hook postrouting priority 100; }'
+    nft add rule ip nat POSTROUTING oif "$ENABLE_NAT_ON_DEVICE" masquerade
     systemctl enable nftables && systemctl start nftables
 fi
 
 # routing for lans
 if [[ -n "$ROUTE_A" ]]; then
     echo "<- setting up routing: $ROUTE_A <-> $ROUTE_B"
-    tee -a /etc/nftables.conf >/dev/null <<EOF
-table ip filter {
-    chain forward {
-        type filter hook forward priority 0;
-        policy drop;
-
-        # allow forwarding between A and B
-        iif "$ROUTE_A" oif "$ROUTE_B" accept
-        iif "$ROUTE_B" oif "$ROUTE_A" accept
-    }
-}
-EOF
-    systemctl enable nftables && systemctl start nftables
+    nft add table ip filter
+    nft add chain ip filter forward '{ type filter hook forward priority 0; policy drop; }'
+    nft add rule ip filter forward iif "$ROUTE_A" oif "$ROUTE_B" accept
+    nft add rule ip filter forward iif "$ROUTE_B" oif "$ROUTE_A" accept
 fi
+
+tee /etc/nftables.conf >/dev/null <<EOF
+#!/usr/sbin/nft -f
+
+flush ruleset
+
+EOF
+nft list ruleset >> /etc/nftables.conf
+systemctl enable nftables
+systemctl start nftables
 
 echo "<- configuring wireguard"
 mkdir -p /etc/wireguard
