@@ -2,8 +2,13 @@
 
 set -euo pipefail
 
-INNER_PRIVATE_KEY=""
-OUTER_PRIVATE_KEY=""
+INNER_PRIVATE_KEY=$1
+OUTER_PRIVATE_KEY=$2
+
+if [[ -z "$INNER_PRIVATE_KEY" ]] || [[ -z "$OUTER_PRIVATE_KEY"]]; then
+    echo "both private keys need to be supplied"
+    exit 1
+fi
 
 ./wgboot.sh 10.0.1.1 "$INNER_PRIVATE_KEY" "" "" "" 443
 
