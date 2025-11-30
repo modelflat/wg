@@ -39,7 +39,7 @@ SERVER_PUBLIC_KEY=$(wg show wg0 public-key)
 SERVER_ENDPOINT=$(ip route get 1.1.1.1 | awk '{print $7; exit}')
 SERVER_PORT=$(grep -E "^ListenPort" "$WGCONF" | awk '{print $3}')
 
-sudo tee -a "$WGCONF" >/dev/null <<EOF
+tee -a "$WGCONF" >/dev/null <<EOF
 # $PEER_NAME
 [Peer]
 PublicKey = $PEER_PUBLIC_KEY

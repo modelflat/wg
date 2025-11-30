@@ -5,7 +5,7 @@ set -euo pipefail
 INNER_PRIVATE_KEY=$1
 OUTER_PRIVATE_KEY=$2
 
-if [[ -z "$INNER_PRIVATE_KEY" ]] || [[ -z "$OUTER_PRIVATE_KEY"]]; then
+if [[ -z "$INNER_PRIVATE_KEY" ]] || [[ -z "$OUTER_PRIVATE_KEY" ]]; then
     echo "both private keys need to be supplied"
     exit 1
 fi
