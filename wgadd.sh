@@ -4,6 +4,7 @@
 # - adds a wireguard peer with a given name and IP
 # - (optional) with a given private key (generated if omitted)
 # - (optional) with a list of allowed ips (defaults to just $PEER_IP/32)
+# - (optional) with a given server endpoint (inferred if omitted)
 
 set -euo pipefail
 
@@ -18,6 +19,7 @@ PEER_NAME="$1"
 PEER_IP="$2"
 PEER_PRIVATE_KEY=${3:-''}
 PEER_ALLOWED_IPS=${4:-''}
+SERVER_ENDPOINT=${5:-''}
 
 if [[ -z "$PEER_IP" ]]; then
     echo "usage: $0 <PEER_NAME> <PEER_IP> [PEER_PRIVATE_KEY] [PEER_ALLOWED_IPS]"
@@ -36,7 +38,9 @@ fi
 PEER_PUBLIC_KEY=$(printf "%s" "$PEER_PRIVATE_KEY" | wg pubkey)
 
 SERVER_PUBLIC_KEY=$(wg show wg0 public-key)
-SERVER_ENDPOINT=$(ip route get 1.1.1.1 | awk '{print $7; exit}')
+if [[ -z "$SERVER_ENDPOINT" ]]; then
+    SERVER_ENDPOINT=$(ip route get 1.1.1.1 | awk '{print $7; exit}')
+fi
 SERVER_PORT=$(grep -E "^ListenPort" "$WGCONF" | awk '{print $3}')
 
 tee -a "$WGCONF" >/dev/null <<EOF

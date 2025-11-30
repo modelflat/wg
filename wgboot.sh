@@ -69,7 +69,8 @@ sysctl -p
 # nat masquerading
 if [[ -n "$ENABLE_NAT_ON_DEVICE" ]]; then 
     echo "<- setting up NAT on $ENABLE_NAT_ON_DEVICE"
-    tee /etc/nftables.conf >/dev/null <<EOF
+    # TODO add rules through nft then dump into config to avoid duplicates
+    tee -a /etc/nftables.conf >/dev/null <<EOF
 table ip nat {
     chain POSTROUTING {
         type nat hook postrouting priority 100;
@@ -83,7 +84,7 @@ fi
 # routing for lans
 if [[ -n "$ROUTE_A" ]]; then
     echo "<- setting up routing: $ROUTE_A <-> $ROUTE_B"
-    tee /etc/nftables.conf >/dev/null <<EOF
+    tee -a /etc/nftables.conf >/dev/null <<EOF
 table ip filter {
     chain forward {
         type filter hook forward priority 0;
