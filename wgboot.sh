@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-# ./wgboot.sh <HOST_SUBNET> [HOST_PUBLIC_KEY] [HOST_PRIVATE_KEY] [ENABLE_NAT_ON_DEVICE] [ROUTE_A] [ROUTE_B]
+# ./wgboot.sh <HOST_SUBNET> [HOST_PRIVATE_KEY] [ENABLE_NAT_ON_DEVICE] [ROUTE_A] [ROUTE_B]
 # - sets up wireguard instance with given HOST_SUBNET
-# - (optional) with a given key pair
+# - (optional) with a given private key (generated if omitted)
 # - (optional) also enables NAT masquerading on the given network device
 # - (optional) also sets up LAN routing between device ROUTE_A and device ROUTE_B
 
@@ -14,12 +14,11 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 HOST_ADDRESS="$1"
-PUBLIC_KEY=${2:-""}
-PRIVATE_KEY=${3:-""}
-ENABLE_NAT_ON_DEVICE=${4:-""}
-ROUTE_A=${5:-""}
-ROUTE_B=${6:-""}
-WGPORT=${7:-51820}
+HOST_PRIVATE_KEY=${2:-""}
+ENABLE_NAT_ON_DEVICE=${3:-""}
+ROUTE_A=${4:-""}
+ROUTE_B=${5:-""}
+WGPORT=${6:-51820}
 
 apt update
 
@@ -32,6 +31,7 @@ apt install -y \
 
 # kernel module (not needed for modern ubuntu)
 if ! lsmod | grep -q wireguard; then
+    echo "<- building kernel module"
     mkdir -p /tmp/src && cd /tmp/src
 
     if ! modinfo wireguard >/dev/null 2>&1; then
@@ -49,7 +49,7 @@ fi
 # tools
 mkdir -p /tmp/src && cd /tmp/src
 
-echo "building tools..."
+echo "<- building tools"
 git clone https://git.zx2c4.com/wireguard-tools || true
 cd wireguard-tools/src
 make
@@ -63,12 +63,14 @@ flush ruleset
 EOF
 
 # packet forwarding
+echo "<- setting up packet forwarding"
 echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
 echo 'net.ipv6.conf.all.forwarding=1' >> /etc/sysctl.conf
 sysctl -p
 
 # nat masquerading
 if [[ -n "$ENABLE_NAT_ON_DEVICE" ]]; then 
+    echo "<- setting up NAT on $ENABLE_NAT_ON_DEVICE"
     tee /etc/nftables.conf >/dev/null <<EOF
 table ip nat {
     chain POSTROUTING {
@@ -81,7 +83,8 @@ EOF
 fi
 
 # routing for lans
-if [[ -n "$ROUTE_A" ]]; then 
+if [[ -n "$ROUTE_A" ]]; then
+    echo "<- setting up routing: $ROUTE_A <-> $ROUTE_B"
     tee /etc/nftables.conf >/dev/null <<EOF
 table ip filter {
     chain forward {
@@ -97,21 +100,20 @@ EOF
     systemctl enable nftables && systemctl start nftables
 fi
 
-# conf
+echo "<- configuring wireguard"
 mkdir -p /etc/wireguard
 chmod 700 /etc/wireguard
 
 WGCONF=/etc/wireguard/wg0.conf
 
-# server keys
-if [[ -z "$PRIVATE_KEY" ]]; then 
-    PRIVATE_KEY=$(wg genkey)
-    PUBLIC_KEY=$(printf "%s" "$PRIVATE_KEY" | wg pubkey)
+if [[ -z "$HOST_PRIVATE_KEY" ]]; then 
+    HOST_PRIVATE_KEY=$(wg genkey)
 fi
+HOST_PUBLIC_KEY=$(printf "%s" "$HOST_PRIVATE_KEY" | wg pubkey)
 
 tee $WGCONF >/dev/null <<EOF
 [Interface]
-PrivateKey = $PRIVATE_KEY
+PrivateKey = $HOST_PRIVATE_KEY
 Address = $HOST_ADDRESS/32
 ListenPort = $WGPORT
 EOF
@@ -121,14 +123,14 @@ chmod 600 $WGCONF
 systemctl enable wg-quick@wg0
 systemctl restart wg-quick@wg0
 
-# validate
-echo "service status..."
-systemctl status wg-quick@wg0 --no-pager || true
-
-echo "forwarding settings..."
-sysctl net.ipv4.ip_forward net.ipv6.conf.all.forwarding
 
 echo "--- bootstrapping complete ---"
-echo "this wg instance's keys:"
-echo "public  -> $PUBLIC_KEY"
-echo "private -> $PRIVATE_KEY"
+
+echo "-> forwarding settings:"
+sysctl net.ipv4.ip_forward net.ipv6.conf.all.forwarding
+
+echo "-> service status"
+systemctl status wg-quick@wg0 --no-pager || true
+
+echo "-> public key  -> $HOST_PUBLIC_KEY"
+echo "-> private key -> $HOST_PRIVATE_KEY"
