@@ -31,29 +31,27 @@ apt install -y \
 
 # kernel module (not needed for modern ubuntu)
 if ! lsmod | grep -q wireguard; then
-    echo "<- building kernel module"
-    mkdir -p /tmp/src && cd /tmp/src
+    echo "<- enabling kernel module"
+    mkdir -p /tmp/src
 
     if ! modinfo wireguard >/dev/null 2>&1; then
         echo "! kernel lacks native WireGuard, building wireguard-linux-compat..."
-        git clone https://git.zx2c4.com/wireguard-linux-compat || true
-        cd wireguard-linux-compat
-        make
-        make install
-        cd ..
+        git clone https://git.zx2c4.com/wireguard-linux-compat wireguard-linux-compat || true
+        make -C /tmp/src/wireguard-linux-compat/src
+        make -C /tmp/src/wireguard-linux-compat/src install
     fi
 
     modprobe wireguard
+    echo "wireguard" >>/etc/modules-load.d/wireguard.conf
 fi
 
 # tools
-mkdir -p /tmp/src && cd /tmp/src
+mkdir -p /tmp/src
 
 echo "<- building tools"
 git clone https://git.zx2c4.com/wireguard-tools || true
-cd wireguard-tools/src
-make
-make install
+make -C /tmp/src/wireguard-tools/src
+make -C /tmp/src/wireguard-tools/src install
 
 tee /etc/nftables.conf >/dev/null <<EOF
 #!/usr/sbin/nft -f
